@@ -839,19 +839,48 @@ Screen Time extension targets are optional and should be added only if the feasi
 
 ### Phase 1: Local App Skeleton + Mock Sync Server
 
-- Use bundle ID `com.zocomputer.robios`.
-- Target iOS 26.1 or newer with the latest installed public SDK.
-- Use Swift 6 language mode.
-- Use Xcode automatic signing with Substrate Labs Inc. team `C8HFK26MUS` for the registered iPhone.
-- Create SwiftUI shell: Dashboard, Data, Sync, Settings.
-- Add local `DataPoint`, `CollectorCheckpoint`, and sync status models.
-- Implement append-only local writes.
-- Implement server settings: HTTP base URL and shared secret access key.
-- Store access key in Keychain.
-- Implement `/v1/status` and `/v1/ingest` client.
-- Implement file blob upload client.
-- Add tiny mock server for local contract testing.
-- Add manual test event creation and manual sync.
+Implementation checklist:
+
+- [x] Configure bundle ID `com.zocomputer.robios`.
+- [x] Target iOS 26.1 or newer with the latest installed public SDK.
+- [x] Use Swift 6 language mode.
+- [x] Use Xcode automatic signing with Substrate Labs Inc. team `C8HFK26MUS` for the registered iPhone.
+- [ ] Create app folders: `Models`, `Services`, `Views`, `Utilities`, and `tools/mock-server`.
+- [ ] Replace starter `ContentView` with a tab shell: Dashboard, Data, Sync, Settings.
+- [ ] Add SwiftData model container at app startup.
+- [ ] Add `DataPoint` model with fields from the Local Data Model section.
+- [ ] Add `CollectorCheckpoint` model.
+- [ ] Add sync request/response DTOs in `SyncModels.swift`.
+- [ ] Add `LocalStore` service for append-only writes, pending-point queries, sync-state updates, and basic counts.
+- [ ] Add monotonic `localSequence` allocation.
+- [ ] Add JSON payload hashing with SHA-256.
+- [ ] Add `AppSettings` storage for server base URL, device ID, installation ID, batch size, and local defaults.
+- [ ] Add Keychain helper for the shared secret access key.
+- [ ] Add Settings UI for server URL and access key.
+- [ ] Add `ServerAPI` client for `GET /v1/status`.
+- [ ] Add `ServerAPI` client for `POST /v1/devices/register`.
+- [ ] Add `ServerAPI` client for `POST /v1/ingest`.
+- [ ] Add `FileBlobUploader` for `HEAD` and `PUT /v1/files/blobs/{sha256}`.
+- [ ] Add `SyncEngine` for batching, upload, accepted/duplicate handling, rejection handling, and retry metadata.
+- [ ] Add Sync UI showing server reachability, pending/synced/failed counts, last sync time, and last error.
+- [ ] Add manual "Create Test Event" action that writes an `app.test_event` `DataPoint`.
+- [ ] Add manual "Sync Now" action.
+- [ ] Add Dashboard summary cards for local point count, pending sync count, failed sync count, and server status.
+- [ ] Add Data Browser list filtered by stream and sync state.
+- [ ] Add Python mock server at `tools/mock-server/robios_mock_server.py`.
+- [ ] Mock server implements `GET /v1/status`.
+- [ ] Mock server implements `POST /v1/devices/register`.
+- [ ] Mock server implements `POST /v1/ingest`.
+- [ ] Mock server implements `HEAD /v1/files/blobs/{sha256}`.
+- [ ] Mock server implements `PUT /v1/files/blobs/{sha256}`.
+- [ ] Mock server validates bearer token, request shape, blob size, and blob hash.
+- [ ] Mock server persists received batches and blobs under a local ignored data directory.
+- [ ] Add `.gitignore` entries for mock-server runtime data and Xcode build artifacts.
+- [ ] Verify `xcodebuild -project robios.xcodeproj -scheme robios -destination 'generic/platform=iOS' -allowProvisioningUpdates build` succeeds.
+- [ ] Verify mock server starts locally and responds to `/v1/status`.
+- [ ] Verify app can create a test event, sync it to the mock server, and mark it synced locally.
+- [ ] Verify failed auth is visible in the Sync UI and does not mark points synced.
+- [ ] Verify app launches on the registered iPhone.
 
 ### Phase 2: HealthKit Required Path
 
