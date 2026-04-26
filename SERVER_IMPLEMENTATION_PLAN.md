@@ -269,6 +269,7 @@ Phase 1 request limits:
 Phase 1 security:
 
 - Single shared bearer token via `ROBIOS_TOKEN`.
+- Production startup must fail if `ROBIOS_TOKEN` is missing. A local development default such as `dev-secret` is acceptable only behind an explicit development mode or local-only environment.
 - Constant-time token comparison.
 - Reject missing token with `401`.
 - Do not log authorization headers or request bodies by default.
@@ -328,6 +329,8 @@ Implementation steps:
 8. Configure the iOS app Settings tab with the service base URL and the same access key.
 9. Run `Sync Now` and confirm records arrive in SQLite.
 
+Keep `server/README.md` in sync with these deployment steps. The README should not recommend installing dependencies in the service entrypoint, should call out the production `ROBIOS_TOKEN` requirement, and should describe the HTTPS or local-network HTTP reachability requirement for iPhone sync.
+
 ## Analysis/export plan
 
 Add `server/scripts/export_duckdb.py` to create or refresh:
@@ -380,7 +383,20 @@ Manual iPhone flow:
 - Whether to keep local development runtime data inside repo-ignored `server/data/` or use an external local path. Production data should live outside the repo at `/home/workspace/robios-data/`.
 - Whether to implement DuckDB export immediately or after first successful phone sync.
 - Whether the app should switch from a shared token to a registered per-device token after `/v1/devices/register`.
-- Whether to update the Swift JSON date decoder for fractional seconds, or enforce no-fraction server timestamps everywhere.
+- Timestamp policy: either enforce no-fraction RFC 3339 UTC timestamps everywhere, or explicitly accept fractional seconds in the Swift decoder and automated tests. The current implementation emits fractional seconds via JavaScript `toISOString()`, so this needs a deliberate decision.
+
+## Current implementation gaps
+
+The current Bun/Hono implementation passes the local smoke test and covers the basic API contract, but it is still a prototype. Address these before treating the Zo service as ready for real iPhone data:
+
+- `ROBIOS_TOKEN` currently has a silent `dev-secret` default. Production should fail closed without a configured secret.
+- Request limits are not implemented yet. Ingest JSON, batch point count, per-point payload size, and blob upload size all need enforcement.
+- Blob upload currently reads the full body into memory. It should enforce the configured limit and stream to a temporary file while hashing.
+- Ingest duplicate handling is check-then-insert. It should use atomic conflict handling and include batch creation/counter updates in the same transaction.
+- Schema setup is inline and duplicated with `schema.sql`. Add migration tracking or freeze the schema before first real sync.
+- Automated tests are still missing beyond the smoke script.
+- `server/README.md` is stale relative to the deployment plan.
+- The timestamp policy is not settled between the server implementation, Swift decoder, and plan.
 
 ## Implementation checklist
 
@@ -395,11 +411,14 @@ Manual iPhone flow:
 - [x] Add a smoke-test script.
 - [x] Add server README with local and Zo service commands.
 - [x] Update `.gitignore` for runtime data.
+- [ ] Require explicit `ROBIOS_TOKEN` for production startup.
 - [ ] Add schema migration tracking before first production sync.
 - [ ] Enforce API timestamp format compatible with the Swift client.
 - [ ] Enforce Phase 1 request size limits.
+- [ ] Stream blob uploads to temporary files while hashing and enforcing size limits.
 - [ ] Make ingest duplicate handling atomic.
 - [ ] Add automated server tests for auth, status, registration, ingest, blobs, limits, and migrations.
+- [ ] Update `server/README.md` to match the production deployment plan.
 - [ ] Confirm public HTTPS or LAN HTTP reachability from the iPhone.
 - [ ] Register the Zo User Service.
 - [ ] Configure the iOS app against the Zo service URL.
