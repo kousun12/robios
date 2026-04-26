@@ -9,6 +9,7 @@
 - `robios/Views/`: SwiftUI tabs and screens.
 - `robios/Utilities/`: hashing, JSON canonicalization, and sequence helpers.
 - `robios/Assets.xcassets/`: app icon, accent color, and other assets.
+- `server/`: Bun + Hono sync server that implements the real HTTP API for Zo deployment.
 - `tools/mock-server/`: Python standard-library mock sync server.
 
 The project uses Xcode file-system-synchronized groups, so new Swift files placed under `robios/` are picked up by the app target.
@@ -19,6 +20,20 @@ Build the iOS app:
 
 ```sh
 xcodebuild -project robios.xcodeproj -scheme robios -destination 'generic/platform=iOS' build
+```
+
+Start the Bun/Hono server locally:
+
+```sh
+cd server
+ROBIOS_TOKEN=dev-secret ROBIOS_DATA_DIR=./data bun run dev
+```
+
+Run the server smoke test:
+
+```sh
+cd server
+ROBIOS_BASE_URL=http://127.0.0.1:8080 ROBIOS_TOKEN=dev-secret bun run smoke
 ```
 
 Start the mock server locally:
@@ -47,7 +62,7 @@ There is no dedicated test target yet. For now, verify changes with `xcodebuild`
 
 Recent history uses short conventional prefixes such as `feat:` and `chore:`. Keep commit subjects concise and imperative, for example `feat: Add HealthKit checkpoint model`.
 
-Pull requests should include a focused summary, verification steps, and screenshots for UI changes. Link related issues or PLAN.md checklist items. Do not commit Xcode build output, DerivedData, or `tools/mock-server/.data/`.
+Pull requests should include a focused summary, verification steps, and screenshots for UI changes. Link related issues or PLAN.md checklist items. Do not commit Xcode build output, DerivedData, `tools/mock-server/.data/`, `server/data/`, SQLite files, or `robios-data/`.
 
 ## Security & Configuration Tips
 

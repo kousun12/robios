@@ -1,0 +1,17 @@
+{
+  "name": "robios-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "start": "bun run src/index.ts",
+    "smoke": "bun run scripts/smoke-test.ts"
+  },
+  "dependencies": {
+    "hono": "latest"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

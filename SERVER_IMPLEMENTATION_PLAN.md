@@ -4,7 +4,9 @@
 
 Implement and run the real robios sync server on this Zo Computer so the iOS app can sync personal iPhone data to Rob's own server, with durable storage, authenticated HTTP APIs, and easy local analysis.
 
-The app already speaks a small sync contract via `ServerAPI.swift` and `FileBlobUploader.swift`. The repo also has a Python standard-library mock server in `tools/mock-server/robios_mock_server.py`; the Zo server should start by matching that contract, then replace file-per-record mock persistence with a durable database and blob store.
+The server should live in this repository next to the iOS app so the client/server API contract evolves in source control together. Zo can run it as a managed User Service from the repo checkout.
+
+The app already speaks a small sync contract via `ServerAPI.swift` and `FileBlobUploader.swift`. The repo also has a Python standard-library mock server in `tools/mock-server/robios_mock_server.py`; the real server should match that contract, then replace file-per-record mock persistence with a durable database and blob store.
 
 ## Current client contract
 
@@ -109,35 +111,38 @@ Response:
 
 Use a managed User Service rather than `zo.space` because this is a private personal data ingest service with its own long-running process, database files, and blob storage.
 
-- Runtime: Python + FastAPI or Bun + Hono.
-- Recommendation: Python + FastAPI for fastest implementation and easy DuckDB/SQLite tooling.
+- Runtime: Bun + TypeScript.
+- Framework: Hono.
 - Service mode: private HTTP service if available; otherwise public HTTP service protected by bearer auth.
 - Entrypoint: bind to `0.0.0.0:${PORT}`.
 - Secret: `ROBIOS_TOKEN` in Zo Settings > Advanced.
-- Data root: `/home/workspace/robios-data/` or a repo-ignored `server/data/` directory.
-- Database: SQLite initially, with a DuckDB export/view layer for analysis later.
+- Data root: `/home/workspace/robios-data/` for production service data; repo-ignored `server/data/` for local development.
+- Database: SQLite via Bun's built-in `bun:sqlite`, with a DuckDB export/view layer for analysis later.
 - Blob store: content-addressed files under `<data-root>/blobs/sha256-prefix/sha256`.
 
 Rationale:
 
+- Bun + Hono keeps the server small, fast, and TypeScript-native while matching Zo's service runtime well.
 - SQLite is durable, simple, and sufficient for a single personal iPhone ingest stream.
+- Bun's built-in SQLite support avoids extra native dependencies.
 - Blob bytes should not be stored inline in the relational database.
 - The raw `payload` should be retained exactly for reproducibility, while parsed JSON can be added later for query convenience.
 - Bearer auth matches the iOS app and current mock server.
 
-## Proposed repo layout
+## Repo layout
 
-Add:
+Current real server layout:
 
 ```text
 server/
-  robios_server.py
-  requirements.txt
+  package.json
+  bun.lock
   README.md
   schema.sql
+  src/
+    index.ts
   scripts/
-    init_db.py
-    export_duckdb.py
+    smoke-test.ts
 ```
 
 Keep generated runtime data out of git:
@@ -145,6 +150,7 @@ Keep generated runtime data out of git:
 ```text
 server/data/
 robios-data/
+*.sqlite
 *.sqlite-wal
 *.sqlite-shm
 ```
@@ -259,28 +265,33 @@ Phase 2 hardening:
 
 Implementation steps:
 
-1. Add the `server/` FastAPI implementation matching the mock API.
-2. Add `server/requirements.txt` with `fastapi`, `uvicorn`, and optionally `pydantic` if not bundled by FastAPI.
-3. Add schema initialization on server startup.
-4. Run locally:
+1. Keep the `server/` Bun + Hono implementation matching the mock API.
+2. Keep schema initialization on server startup.
+3. Run locally:
 
    ```sh
-   cd /home/workspace/robios
-   ROBIOS_TOKEN=dev-secret ROBIOS_DATA_DIR=/home/workspace/robios-data \
-     python3 -m uvicorn server.robios_server:app --host 127.0.0.1 --port 8080
+   cd /home/workspace/robios/server
+   bun install
+   ROBIOS_TOKEN=dev-secret ROBIOS_DATA_DIR=./data bun run dev
    ```
 
-5. Verify:
+4. Verify:
 
    ```sh
    curl -H 'Authorization: Bearer dev-secret' http://127.0.0.1:8080/v1/status
    ```
 
+5. Run smoke test:
+
+   ```sh
+   cd /home/workspace/robios/server
+   ROBIOS_BASE_URL=http://127.0.0.1:8080 ROBIOS_TOKEN=dev-secret bun run smoke
+   ```
+
 6. Register as a Zo User Service:
 
    - mode: `http`
-   - local port: whatever uvicorn binds through `${PORT}`
-   - entrypoint: `bash -lc 'cd /home/workspace/robios && python3 -m uvicorn server.robios_server:app --host 0.0.0.0 --port ${PORT}'`
+   - entrypoint: `bash -lc 'cd /home/workspace/robios/server && bun install --frozen-lockfile && bun run start'`
    - env vars: `ROBIOS_DATA_DIR=/home/workspace/robios-data`
    - secret env var: `ROBIOS_TOKEN` from Zo Settings > Advanced
    - visibility: private if available, otherwise public with bearer auth
@@ -339,17 +350,17 @@ Manual iPhone flow:
 
 ## Implementation checklist
 
-- [ ] Create `server/` package.
-- [ ] Add SQLite schema and startup initialization.
-- [ ] Implement bearer auth middleware/dependency.
-- [ ] Implement `GET /v1/status`.
-- [ ] Implement `POST /v1/devices/register`.
-- [ ] Implement `POST /v1/ingest` with hash verification and idempotency.
-- [ ] Implement `HEAD /v1/files/blobs/{sha256}`.
-- [ ] Implement `PUT /v1/files/blobs/{sha256}` with atomic writes.
-- [ ] Add tests or a smoke-test script.
-- [ ] Add server README with local and Zo service commands.
-- [ ] Update `.gitignore` for runtime data.
+- [x] Create `server/` package.
+- [x] Add SQLite schema and startup initialization.
+- [x] Implement bearer auth middleware/dependency.
+- [x] Implement `GET /v1/status`.
+- [x] Implement `POST /v1/devices/register`.
+- [x] Implement `POST /v1/ingest` with hash verification and idempotency.
+- [x] Implement `HEAD /v1/files/blobs/{sha256}`.
+- [x] Implement `PUT /v1/files/blobs/{sha256}` with atomic writes.
+- [x] Add a smoke-test script.
+- [x] Add server README with local and Zo service commands.
+- [x] Update `.gitignore` for runtime data.
 - [ ] Register the Zo User Service.
 - [ ] Configure the iOS app against the Zo service URL.
 - [ ] Perform first end-to-end sync.
