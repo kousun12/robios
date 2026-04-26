@@ -1,21 +1,17 @@
-//
-//  ContentView.swift
-//  robios
-//
-//  Created by rob on 4/25/26.
-//
-
 import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        TabView {
+            DashboardView()
+                .tabItem { Label("Dashboard", systemImage: "rectangle.3.group") }
+            DataBrowserView()
+                .tabItem { Label("Data", systemImage: "list.bullet.rectangle") }
+            SyncStatusView()
+                .tabItem { Label("Sync", systemImage: "arrow.triangle.2.circlepath") }
+            SettingsView()
+                .tabItem { Label("Settings", systemImage: "gearshape") }
         }
-        .padding()
     }
 }
 

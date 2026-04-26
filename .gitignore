@@ -1,0 +1,12 @@
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcuserdatad/
+
+# Mock server runtime data
+tools/mock-server/.data/
+
+__pycache__/
+*.pyc
