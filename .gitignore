@@ -17,8 +17,6 @@ robios-data/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
-*.duckdb
-*.duckdb.wal
 
 # Dependencies
 node_modules/

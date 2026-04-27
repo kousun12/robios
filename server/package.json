@@ -7,8 +7,7 @@
     "dev": "bun run src/index.ts",
     "start": "bun run src/index.ts",
     "test": "bun test",
-    "smoke": "bun run scripts/smoke-test.ts",
-    "export:duckdb": "python3 scripts/export_duckdb.py"
+    "smoke": "bun run scripts/smoke-test.ts"
   },
   "dependencies": {
     "hono": "latest"

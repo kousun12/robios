@@ -117,7 +117,7 @@ Use a managed User Service rather than `zo.space` because this is a private pers
 - Entrypoint: bind to `0.0.0.0:${PORT}`.
 - Secret: `ROBIOS_TOKEN` in Zo Settings > Advanced.
 - Data root: `/home/workspace/robios-data/` for production service data; repo-ignored `server/data/` for local development.
-- Database: SQLite via Bun's built-in `bun:sqlite`, with a DuckDB export/view layer for analysis later.
+- Database: SQLite via Bun's built-in `bun:sqlite`, including local analysis queries/views in the same database.
 - Blob store: content-addressed files under `<data-root>/blobs/sha256-prefix/sha256`.
 - Request limits: enforced in Phase 1 before accepting public traffic.
 
@@ -155,8 +155,6 @@ robios-data/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
-*.duckdb
-*.duckdb.wal
 ```
 
 Update `.gitignore` accordingly.
@@ -333,22 +331,18 @@ Implementation steps:
 
 Keep `server/README.md` in sync with these deployment steps. The README should not recommend installing dependencies in the service entrypoint, should call out the production `ROBIOS_TOKEN` requirement, and should describe the HTTPS or local-network HTTP reachability requirement for iPhone sync.
 
-## Analysis/export plan
+## Analysis plan
 
-`server/scripts/export_duckdb.py` creates or refreshes:
+Prefer working directly in SQLite for local analysis. SQLite is the server's source of truth, keeps the deployment simple, and is sufficient for the expected single-user iPhone sync workload.
 
-```text
-/home/workspace/robios-data/robios.duckdb
-```
+Initial useful SQLite queries/views:
 
-Initial DuckDB views/tables:
+- raw points by `stream`, `event_date`, and `ingested_at`
+- daily point counts grouped by `stream`
+- latest device status from `devices` plus the latest point per device
+- blob inventory from `blobs`
 
-- `points_raw`
-- `points_by_stream_daily`
-- `latest_device_status`
-- `blob_inventory`
-
-Later, add stream-specific extractors that parse `payload` into typed tables as collectors are implemented.
+Later, add stream-specific SQLite views or materialized tables that parse `payload` into typed tables as collectors are implemented. Only revisit a separate analytical store if SQLite becomes a concrete bottleneck.
 
 ## Test plan
 
@@ -383,7 +377,7 @@ Manual iPhone flow:
 
 - Whether Zo's managed public endpoint provides HTTPS directly or needs a tunnel/domain in front of the User Service.
 - Whether to keep local development runtime data inside repo-ignored `server/data/` or use an external local path. Production data should live outside the repo at `/home/workspace/robios-data/`.
-- DuckDB export is implemented; stream-specific extractors can be added after collectors produce more typed payloads.
+- Whether to add SQLite views for common local analysis after the first real sync.
 - Whether the app should switch from a shared token to a registered per-device token after `/v1/devices/register`.
 - Timestamp policy: server-generated API timestamps are no-fraction RFC 3339 UTC strings. Revisit only if the Swift decoder is changed to accept a broader timestamp format.
 
@@ -398,7 +392,6 @@ The Bun/Hono server now covers the local production-readiness items from this pl
 - Blob uploads stream to a temporary file while hashing and enforcing the size limit.
 - Ingest uses `ON CONFLICT(point_id) DO NOTHING` inside a transaction that also creates and updates the batch row.
 - Automated Bun tests cover auth, status, registration, ingest, limits, blobs, and migration state.
-- `server/scripts/export_duckdb.py` refreshes DuckDB analysis tables from the SQLite database.
 - `server/README.md` matches the local and Zo deployment commands.
 
 Remaining work requires the deployment target and phone:
@@ -428,7 +421,6 @@ Remaining work requires the deployment target and phone:
 - [x] Stream blob uploads to temporary files while hashing and enforcing size limits.
 - [x] Make ingest duplicate handling atomic.
 - [x] Add automated server tests for auth, status, registration, ingest, blobs, limits, and migrations.
-- [x] Add DuckDB export script for local analysis tables.
 - [x] Update `server/README.md` to match the production deployment plan.
 - [ ] Confirm public HTTPS or LAN HTTP reachability from the iPhone.
 - [ ] Register the Zo User Service.
