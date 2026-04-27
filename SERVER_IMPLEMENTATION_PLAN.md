@@ -155,6 +155,8 @@ robios-data/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
+*.duckdb
+*.duckdb.wal
 ```
 
 Update `.gitignore` accordingly.
@@ -333,7 +335,7 @@ Keep `server/README.md` in sync with these deployment steps. The README should n
 
 ## Analysis/export plan
 
-Add `server/scripts/export_duckdb.py` to create or refresh:
+`server/scripts/export_duckdb.py` creates or refreshes:
 
 ```text
 /home/workspace/robios-data/robios.duckdb
@@ -381,7 +383,7 @@ Manual iPhone flow:
 
 - Whether Zo's managed public endpoint provides HTTPS directly or needs a tunnel/domain in front of the User Service.
 - Whether to keep local development runtime data inside repo-ignored `server/data/` or use an external local path. Production data should live outside the repo at `/home/workspace/robios-data/`.
-- Whether to implement DuckDB export immediately or after first successful phone sync.
+- DuckDB export is implemented; stream-specific extractors can be added after collectors produce more typed payloads.
 - Whether the app should switch from a shared token to a registered per-device token after `/v1/devices/register`.
 - Timestamp policy: server-generated API timestamps are no-fraction RFC 3339 UTC strings. Revisit only if the Swift decoder is changed to accept a broader timestamp format.
 
@@ -396,6 +398,7 @@ The Bun/Hono server now covers the local production-readiness items from this pl
 - Blob uploads stream to a temporary file while hashing and enforcing the size limit.
 - Ingest uses `ON CONFLICT(point_id) DO NOTHING` inside a transaction that also creates and updates the batch row.
 - Automated Bun tests cover auth, status, registration, ingest, limits, blobs, and migration state.
+- `server/scripts/export_duckdb.py` refreshes DuckDB analysis tables from the SQLite database.
 - `server/README.md` matches the local and Zo deployment commands.
 
 Remaining work requires the deployment target and phone:
@@ -425,6 +428,7 @@ Remaining work requires the deployment target and phone:
 - [x] Stream blob uploads to temporary files while hashing and enforcing size limits.
 - [x] Make ingest duplicate handling atomic.
 - [x] Add automated server tests for auth, status, registration, ingest, blobs, limits, and migrations.
+- [x] Add DuckDB export script for local analysis tables.
 - [x] Update `server/README.md` to match the production deployment plan.
 - [ ] Confirm public HTTPS or LAN HTTP reachability from the iPhone.
 - [ ] Register the Zo User Service.

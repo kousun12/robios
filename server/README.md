@@ -44,6 +44,14 @@ cd server
 ROBIOS_BASE_URL=http://127.0.0.1:8080 ROBIOS_TOKEN=dev-secret bun run smoke
 ```
 
+Refresh local DuckDB analysis tables from SQLite:
+
+```sh
+cd server
+python3 -m pip install duckdb
+ROBIOS_DATA_DIR=./data bun run export:duckdb
+```
+
 ## Configuration
 
 - `PORT`: HTTP port, default `8080`.
@@ -66,6 +74,27 @@ SQLite is initialized at startup and migrations are tracked in `schema_migration
 ```
 
 Generated runtime data should stay out of git. Local development data belongs in `server/data/`; production service data should live outside the repo, for example `/home/workspace/robios-data`.
+
+## Analysis export
+
+`scripts/export_duckdb.py` creates or refreshes a DuckDB database from the server SQLite database. By default it reads:
+
+```text
+<ROBIOS_DATA_DIR>/robios.sqlite
+```
+
+and writes:
+
+```text
+<ROBIOS_DATA_DIR>/robios.duckdb
+```
+
+Override paths with `ROBIOS_DB_PATH`, `ROBIOS_DUCKDB_PATH`, or the script flags `--sqlite` and `--duckdb`. The export recreates these tables on each run:
+
+- `points_raw`
+- `points_by_stream_daily`
+- `latest_device_status`
+- `blob_inventory`
 
 ## Zo service
 
