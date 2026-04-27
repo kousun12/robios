@@ -67,6 +67,81 @@ SQLite is initialized at startup and migrations are tracked in `schema_migration
 
 Generated runtime data should stay out of git. Local development data belongs in `server/data/`; production service data should live outside the repo, for example `/home/workspace/robios-data`.
 
+## Personal server deployment
+
+Install dependencies from the `server/` directory:
+
+```sh
+cd /home/workspace/robios/server
+bun install --frozen-lockfile
+```
+
+Create a durable data directory outside the repo:
+
+```sh
+mkdir -p /home/workspace/robios-data
+```
+
+Run the service with an explicit secret token:
+
+```sh
+cd /home/workspace/robios/server
+ROBIOS_TOKEN='<long-random-secret>' \
+ROBIOS_DATA_DIR=/home/workspace/robios-data \
+PORT=8080 \
+bun run start
+```
+
+Use a service manager for long-running production use. The command it runs should be equivalent to:
+
+```sh
+bash -lc 'cd /home/workspace/robios/server && bun run start'
+```
+
+with these environment variables:
+
+```sh
+ROBIOS_DATA_DIR=/home/workspace/robios-data
+ROBIOS_TOKEN=<long-random-secret>
+PORT=8080
+```
+
+Expose the service through HTTPS for iPhone sync, for example with a reverse proxy or managed public HTTPS endpoint in front of the Bun process. Local-network HTTP is acceptable only when the phone and server are on the same LAN. Do not rely on public plain HTTP for iPhone sync unless the app gains an explicit ATS exception.
+
+Verify the deployed status endpoint:
+
+```sh
+curl -i -H 'Authorization: Bearer <long-random-secret>' https://your-server.example/v1/status
+```
+
+Run the contract smoke test against the deployed URL:
+
+```sh
+cd /home/workspace/robios/server
+ROBIOS_BASE_URL=https://your-server.example \
+ROBIOS_TOKEN='<long-random-secret>' \
+bun run smoke
+```
+
+Configure the iOS app Settings tab with:
+
+- server base URL: `https://your-server.example`
+- access key: the same value as `ROBIOS_TOKEN`
+
+After tapping Sync Now in the app, inspect the SQLite database:
+
+```sh
+sqlite3 /home/workspace/robios-data/robios.sqlite
+```
+
+Useful first checks:
+
+```sql
+SELECT COUNT(*) FROM points;
+SELECT stream, COUNT(*) FROM points GROUP BY stream ORDER BY stream;
+SELECT device_id, installation_id, last_seen_at FROM devices;
+```
+
 ## Zo service
 
 Use a managed Zo User Service with `mode=http`.
