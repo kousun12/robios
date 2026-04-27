@@ -383,20 +383,27 @@ Manual iPhone flow:
 - Whether to keep local development runtime data inside repo-ignored `server/data/` or use an external local path. Production data should live outside the repo at `/home/workspace/robios-data/`.
 - Whether to implement DuckDB export immediately or after first successful phone sync.
 - Whether the app should switch from a shared token to a registered per-device token after `/v1/devices/register`.
-- Timestamp policy: either enforce no-fraction RFC 3339 UTC timestamps everywhere, or explicitly accept fractional seconds in the Swift decoder and automated tests. The current implementation emits fractional seconds via JavaScript `toISOString()`, so this needs a deliberate decision.
+- Timestamp policy: server-generated API timestamps are no-fraction RFC 3339 UTC strings. Revisit only if the Swift decoder is changed to accept a broader timestamp format.
 
-## Current implementation gaps
+## Current implementation status
 
-The current Bun/Hono implementation passes the local smoke test and covers the basic API contract, but it is still a prototype. Address these before treating the Zo service as ready for real iPhone data:
+The Bun/Hono server now covers the local production-readiness items from this plan:
 
-- `ROBIOS_TOKEN` currently has a silent `dev-secret` default. Production should fail closed without a configured secret.
-- Request limits are not implemented yet. Ingest JSON, batch point count, per-point payload size, and blob upload size all need enforcement.
-- Blob upload currently reads the full body into memory. It should enforce the configured limit and stream to a temporary file while hashing.
-- Ingest duplicate handling is check-then-insert. It should use atomic conflict handling and include batch creation/counter updates in the same transaction.
-- Schema setup is inline and duplicated with `schema.sql`. Add migration tracking or freeze the schema before first real sync.
-- Automated tests are still missing beyond the smoke script.
-- `server/README.md` is stale relative to the deployment plan.
-- The timestamp policy is not settled between the server implementation, Swift decoder, and plan.
+- `ROBIOS_TOKEN` is required by default. `ROBIOS_ALLOW_DEV_TOKEN=1` enables the local-only `dev-secret` fallback.
+- Schema migrations are tracked in `schema_migrations` and applied at startup.
+- Server-generated timestamps use RFC 3339 UTC without fractional seconds.
+- Phase 1 ingest, batch, payload, and blob upload limits are enforced with configurable environment variables.
+- Blob uploads stream to a temporary file while hashing and enforcing the size limit.
+- Ingest uses `ON CONFLICT(point_id) DO NOTHING` inside a transaction that also creates and updates the batch row.
+- Automated Bun tests cover auth, status, registration, ingest, limits, blobs, and migration state.
+- `server/README.md` matches the local and Zo deployment commands.
+
+Remaining work requires the deployment target and phone:
+
+- Confirm public HTTPS or LAN HTTP reachability from the iPhone.
+- Register the Zo User Service.
+- Configure the iOS app against the Zo service URL.
+- Perform the first end-to-end sync.
 
 ## Implementation checklist
 
@@ -411,14 +418,14 @@ The current Bun/Hono implementation passes the local smoke test and covers the b
 - [x] Add a smoke-test script.
 - [x] Add server README with local and Zo service commands.
 - [x] Update `.gitignore` for runtime data.
-- [ ] Require explicit `ROBIOS_TOKEN` for production startup.
-- [ ] Add schema migration tracking before first production sync.
-- [ ] Enforce API timestamp format compatible with the Swift client.
-- [ ] Enforce Phase 1 request size limits.
-- [ ] Stream blob uploads to temporary files while hashing and enforcing size limits.
-- [ ] Make ingest duplicate handling atomic.
-- [ ] Add automated server tests for auth, status, registration, ingest, blobs, limits, and migrations.
-- [ ] Update `server/README.md` to match the production deployment plan.
+- [x] Require explicit `ROBIOS_TOKEN` for production startup.
+- [x] Add schema migration tracking before first production sync.
+- [x] Enforce API timestamp format compatible with the Swift client.
+- [x] Enforce Phase 1 request size limits.
+- [x] Stream blob uploads to temporary files while hashing and enforcing size limits.
+- [x] Make ingest duplicate handling atomic.
+- [x] Add automated server tests for auth, status, registration, ingest, blobs, limits, and migrations.
+- [x] Update `server/README.md` to match the production deployment plan.
 - [ ] Confirm public HTTPS or LAN HTTP reachability from the iPhone.
 - [ ] Register the Zo User Service.
 - [ ] Configure the iOS app against the Zo service URL.
